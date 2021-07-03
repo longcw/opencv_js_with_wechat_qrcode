@@ -1,6 +1,6 @@
 ## Build
 1. Install EMSDK following https://docs.opencv.org/3.4/d4/da1/tutorial_js_setup.html
-2. Clone the modified opencv and opencv_contrib
+2. Clone the modified [opencv](https://github.com/longcw/opencv) and [opencv_contrib](https://github.com/longcw/opencv_contrib)
    ```bash
    cd /path/to/work_dir
    git clone -b feat/wechat_qrcode_js https://github.com/longcw/opencv.git
