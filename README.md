@@ -15,6 +15,9 @@
 
 ## Example
 This repo includes a built opencv.js and a test script in [example](./example).
+
+Try it online: https://longcw.github.io/opencv_js_example/test.html,
+or locally: 
 ```bash
 cd example
 python -m http.server 8000
