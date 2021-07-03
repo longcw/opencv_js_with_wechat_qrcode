@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+
+<body>
+    <button id="qrcodeTryIt" disabled="true" onclick="qrcodeExecuteCode()">Try it</button><br>
+    <div id="status"></div>
+    <div id="qrcodeResult"></div>
+    <div id="barcodeResult"></div>
+    <div id="qrcodeShowcase">
+        <div>
+            <canvas id="canvasInput"></canvas>
+            <canvas id="qrcodeCanvasOutput"></canvas>
+            <canvas id="barcodeCanvasOutput"></canvas>
+        </div>
+        <input type="file" id="fileInput" name="file" />
+    </div>
+
+    <script src="./utils.js"></script>
+
+    <script>
+        var qrcode_detector = undefined, barcode_detector = undefined;
+        var utils = new Utils('');
+        utils.loadOpenCv(() => { });
+
+        function updateStatus(text) {
+            document.getElementById('status').innerHTML = text;
+        };
+
+        function loadModels(callback) {
+            var detect_proto = "./models/detect.prototxt"
+            var detect_weight = "./models/detect.caffemodel"
+            var sr_proto = "./models/sr.prototxt"
+            var sr_weight = "./models/sr.caffemodel"
+
+            if (qrcode_detector != undefined && barcode_detector != undefined) {
+                updateStatus('Model Existed');
+                callback();
+            }
+            else {
+                updateStatus('Downloading detect.prototxt');
+                utils.createFileFromUrl('detect.prototxt', detect_proto, () => {
+                    updateStatus('Downloading detect.caffemodel');
+                    utils.createFileFromUrl('detect.caffemodel', detect_weight, () => {
+                        updateStatus('Downloading sr.prototxt');
+                        utils.createFileFromUrl('sr.prototxt', sr_proto, () => {
+                            updateStatus('Downloading sr.caffemodel');
+                            utils.createFileFromUrl('sr.caffemodel', sr_weight, () => {
+                                qrcode_detector = new cv.wechat_qrcode_WeChatQRCode("detect.prototxt", "detect.caffemodel", "sr.prototxt", "sr.caffemodel");
+                                barcode_detector = new cv.barcode_BarcodeDetector("sr.prototxt", "sr.caffemodel");
+                                updateStatus('Model Created');
+                                callback();
+                            });
+                        });
+                    });
+                });
+            };
+        };
+
+        function qrcode_run() {
+
+            let inputImage = cv.imread("canvasInput");
+
+            let points_vec = new cv.MatVector();
+            let res = qrcode_detector.detectAndDecode(inputImage, points_vec);
+
+            console.log(res.size());
+            if (res.size() == 0) {
+                document.getElementById('qrcodeResult').innerHTML = 'QRCode Not Found';
+                return;
+            }
+            document.getElementById('qrcodeResult').innerHTML = 'QRCode: ' + res.get(0);
+            console.log(res.get(0));
+
+            let points = points_vec.get(0);
+            let x = points.floatAt(0);
+            let y = points.floatAt(1);
+            let width = points.floatAt(4) - points.floatAt(0);
+            let height = points.floatAt(5) - points.floatAt(1);
+            let rect = new cv.Rect(x, y, width, height)
+            dst = inputImage.roi(rect);
+            cv.imshow("qrcodeCanvasOutput", dst);
+        }
+
+        function barcode_run() {
+
+            let inputImage = cv.imread("canvasInput");
+
+            let points = new cv.Mat();
+            let decodeInfo = new cv.StringVector();
+            let decodeType = new cv.BarcodeTypeVector();
+            let found = barcode_detector.detectAndDecode(inputImage, decodeInfo, decodeType, points);
+
+            console.log(found);
+            if (!found) {
+                document.getElementById('barcodeResult').innerHTML = 'Barcode Not Found';
+                return;
+            }
+            let barcodeTypes = cv.getBarcodeTypeNames(decodeType);
+            document.getElementById('barcodeResult').innerHTML = 'Barcode: ' + barcodeTypes.get(0) + ", " + decodeInfo.get(0);
+            console.log(decodeInfo.size());
+            console.log(decodeInfo.get(0));
+
+            let x = points.floatAt(2);
+            let y = points.floatAt(3);
+            let width = points.floatAt(6) - points.floatAt(2);
+            let height = points.floatAt(7) - points.floatAt(3);
+            let rect = new cv.Rect(x, y, width, height)
+            dst = inputImage.roi(rect);
+            cv.imshow("barcodeCanvasOutput", dst);
+            return;
+        }
+
+        function qrcodeExecuteCode() {
+            loadModels(() => { qrcode_run(); barcode_run(); });
+        };
+
+
+        utils.loadImageToCanvas("qrcode.jpg", "canvasInput");
+        let fileInputElement = document.getElementById("fileInput");
+        fileInputElement.addEventListener("change", qrcodeHandleFiles, false);
+        function qrcodeHandleFiles(e) {
+            let qrcodeUrl = URL.createObjectURL(e.target.files[0]);
+            utils.loadImageToCanvas(qrcodeUrl, "canvasInput");
+        }
+
+        function onReady() {
+            document.getElementById("qrcodeTryIt").disabled = false;
+        }
+        if (typeof cv !== 'undefined') {
+            onReady();
+        } else {
+            document.getElementById("opencvjs").onload = onReady;
+        }
+
+    </script>
+
+</body>
